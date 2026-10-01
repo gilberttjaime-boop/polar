@@ -12,6 +12,7 @@ export function ocorrenciasRoutes(services: Services, config: AppConfig): Router
 
   router.use(authenticate(config));
   router.get("/", authorize(Permissao.CONSULTAR_OCORRENCIAS), asyncHandler(controller.list));
+  router.post("/validar-descricao", authorize(Permissao.REGISTRAR_OCORRENCIA), asyncHandler(controller.validarDescricao));
   router.get("/:id", authorize(Permissao.CONSULTAR_OCORRENCIAS), asyncHandler(controller.get));
   router.post("/", authorize(Permissao.REGISTRAR_OCORRENCIA), asyncHandler(controller.create));
   router.patch("/:id", authorize(Permissao.REGISTRAR_OCORRENCIA), asyncHandler(controller.update));

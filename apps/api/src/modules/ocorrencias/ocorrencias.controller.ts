@@ -4,6 +4,7 @@ import { badRequest } from "../../shared/errors/app-error.js";
 import type { Services } from "../../shared/services.js";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
 import { createOcorrenciaSchema, updateOcorrenciaSchema, updateStatusSchema } from "./ocorrencias.types.js";
+import { analisarModeracaoDescricao } from "./moderacao/analisar-moderacao.js";
 
 const idParamSchema = z.object({ id: z.string().min(1) });
 
@@ -77,5 +78,10 @@ export class OcorrenciasController {
         message: "Historico de ocorrencia nao pode ser editado manualmente."
       }
     });
+  };
+
+  validarDescricao = async (req: Request, res: Response): Promise<Response> => {
+    const dados = z.object({ descricao: z.string().min(1).max(2000) }).parse(req.body);
+    return res.json({ data: analisarModeracaoDescricao(dados.descricao) });
   };
 }

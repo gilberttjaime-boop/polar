@@ -20,6 +20,7 @@ import type {
   OcorrenciaHistorico,
   RelatorioOcorrencias,
   RelatorioOcorrenciasFiltro,
+  ResultadoModeracao,
   StatusOcorrencia,
   Turma,
   UpdateAlunoPayload,
@@ -176,6 +177,14 @@ export async function createOcorrencia(payload: CreateOcorrenciaPayload): Promis
   const response = await apiRequest<ApiData<Ocorrencia>>("/ocorrencias", {
     method: "POST",
     body: JSON.stringify(payload)
+  });
+  return response.data;
+}
+
+export async function validarDescricaoOcorrencia(descricao: string): Promise<ResultadoModeracao> {
+  const response = await apiRequest<ApiData<ResultadoModeracao>>("/ocorrencias/validar-descricao", {
+    method: "POST",
+    body: JSON.stringify({ descricao })
   });
   return response.data;
 }

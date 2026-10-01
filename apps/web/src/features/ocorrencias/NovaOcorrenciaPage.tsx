@@ -9,7 +9,7 @@ import { Input } from "../../components/ui/Input";
 import { Select } from "../../components/ui/Select";
 import { listAlunosDetalhados, listTurmas } from "../../services/school.service";
 import { PRIORIDADES_OCORRENCIA, type AlunoDetalhado, type PrioridadeOcorrencia, type Turma } from "../../services/domain";
-import { createOcorrencia } from "./ocorrencias.service";
+import { createOcorrencia, validarDescricaoOcorrencia } from "./ocorrencias.service";
 
 const schema = z.object({
   alunoId: z.string().min(1, "Selecione um aluno."),
@@ -23,6 +23,11 @@ const schema = z.object({
 });
 
 type FormState = z.infer<typeof schema>;
+
+interface ModeracaoAviso {
+  mensagem: string;
+  orientacao: string;
+}
 
 const initialState: FormState = {
   alunoId: "",
@@ -43,6 +48,7 @@ export function NovaOcorrenciaPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [moderacaoAviso, setModeracaoAviso] = useState<ModeracaoAviso | null>(null);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
 
   useEffect(() => {
@@ -72,6 +78,9 @@ export function NovaOcorrenciaPage() {
 
   function setField(field: keyof FormState, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
+    if (field === "descricao") {
+      setModeracaoAviso(null);
+    }
   }
 
   function setAluno(alunoId: string) {
@@ -94,8 +103,9 @@ export function NovaOcorrenciaPage() {
     setSubmitting(true);
     setErrors({});
     setApiError("");
+    setModeracaoAviso(null);
     try {
-      const ocorrencia = await createOcorrencia({
+      const payload = {
         alunoId: result.data.alunoId,
         categoria: result.data.categoria,
         prioridade: result.data.prioridade as PrioridadeOcorrencia,
@@ -103,10 +113,27 @@ export function NovaOcorrenciaPage() {
         descricao: result.data.descricao,
         local: result.data.local,
         testemunhas: result.data.testemunhas
-      });
+      };
+      const moderacao = await validarDescricaoOcorrencia(payload.descricao);
+      if (moderacao.bloqueado) {
+        setModeracaoAviso({
+          mensagem: "O sistema detectou palavras inapropriadas, por favor corrija",
+          orientacao: moderacao.orientacao ?? "Revise a descrição antes de continuar."
+        });
+        return;
+      }
+      const ocorrencia = await createOcorrencia(payload);
       navigate(`/ocorrencias/${ocorrencia.id}`);
     } catch (err) {
-      setApiError(err instanceof Error ? err.message : "Nao foi possivel registrar a ocorrencia.");
+      const mensagem = err instanceof Error ? err.message : "Nao foi possivel registrar a ocorrencia.";
+      if (/linguagem inadequada|revise a linguagem/i.test(mensagem)) {
+        setModeracaoAviso({
+          mensagem: "O sistema detectou palavras inapropriadas, por favor corrija",
+          orientacao: "Revise a descrição antes de continuar."
+        });
+      } else {
+        setApiError(mensagem);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -116,7 +143,14 @@ export function NovaOcorrenciaPage() {
     <>
       <PageHeader title="Nova ocorrencia" breadcrumb={[{ label: "Inicio", to: "/" }, { label: "Ocorrencias", to: "/ocorrencias" }, { label: "Nova" }]} />
       <Card>
-        {apiError ? <p className="text-danger">{apiError}</p> : null}
+        {moderacaoAviso ? (
+          <div className="state-message state-message--danger" role="alert" aria-live="assertive">
+            <strong>Descrição bloqueada</strong>
+            <p>{moderacaoAviso.mensagem}</p>
+            <p>{moderacaoAviso.orientacao}</p>
+          </div>
+        ) : null}
+        {apiError ? <p className="text-danger" role="alert">{apiError}</p> : null}
         <form className="form-grid" onSubmit={handleSubmit} noValidate>
           <Select
             label="Aluno"
@@ -162,8 +196,15 @@ export function NovaOcorrenciaPage() {
           <Input label="Testemunhas" value={form.testemunhas} onChange={(event) => setField("testemunhas", event.target.value)} />
           <label className="ui-field span-2" htmlFor="descricao">
             <span>Descricao</span>
-            <textarea id="descricao" value={form.descricao} onChange={(event) => setField("descricao", event.target.value)} aria-invalid={Boolean(errors.descricao)} />
+            <textarea
+              id="descricao"
+              value={form.descricao}
+              onChange={(event) => setField("descricao", event.target.value)}
+              aria-describedby={moderacaoAviso ? "descricao-moderacao" : undefined}
+              aria-invalid={Boolean(errors.descricao || moderacaoAviso)}
+            />
             {errors.descricao ? <small className="ui-field__error">{errors.descricao}</small> : null}
+            {moderacaoAviso ? <small id="descricao-moderacao" className="ui-field__error">Corrija a descrição para registrar a ocorrência.</small> : null}
           </label>
           <div className="actions-row span-2">
             <Button type="submit" disabled={submitting} icon={<Save size={18} />}>

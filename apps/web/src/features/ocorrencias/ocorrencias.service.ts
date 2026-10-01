@@ -5,7 +5,8 @@ export {
   listHistoricoOcorrencia,
   listOcorrencias,
   listOcorrenciasDetalhadas,
-  updateOcorrenciaStatus
+  updateOcorrenciaStatus,
+  validarDescricaoOcorrencia
 } from "../../services/school.service";
 
 export type {

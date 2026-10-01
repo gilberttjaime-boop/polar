@@ -23,6 +23,28 @@ export interface ApiData<T> {
   data: T;
 }
 
+export type CategoriaModeracao =
+  | "XINGAMENTO"
+  | "PALAVRAO"
+  | "RACISMO"
+  | "MACHISMO"
+  | "LGBTFOBIA"
+  | "CAPACITISMO"
+  | "OUTRA_DISCRIMINACAO";
+
+export interface CorrespondenciaModeracao {
+  id: string;
+  termo: string;
+  categoria: CategoriaModeracao;
+}
+
+export interface ResultadoModeracao {
+  bloqueado: boolean;
+  correspondencias: CorrespondenciaModeracao[];
+  mensagem?: string;
+  orientacao?: string;
+}
+
 export interface Usuario {
   id: string;
   nome: string;

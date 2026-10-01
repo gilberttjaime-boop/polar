@@ -16,6 +16,7 @@ import type { NotificacaoOcorrenciaRepository } from "../../shared/database/repo
 import type { AuditRepository } from "../../shared/database/repositories/audit.repository.js";
 import { agoraIso, novoId } from "../../shared/utils/ids.js";
 import type { AuthenticatedUser } from "../auth/auth.types.js";
+import { analisarModeracaoDescricao } from "./moderacao/analisar-moderacao.js";
 
 const proximoStatus: Record<StatusOcorrencia, StatusOcorrencia | null> = {
   [StatusOcorrencia.REGISTRADA]: StatusOcorrencia.EM_ANALISE,
@@ -151,6 +152,15 @@ export class OcorrenciasService {
       throw badRequest("Ocorrencia exige aluno, categoria, prioridade e descricao.");
     }
 
+    const moderacao = analisarModeracaoDescricao(descricao);
+
+    if (moderacao.bloqueado) {
+      throw badRequest(
+        moderacao.mensagem ??
+          "A descrição contém linguagem inadequada e não pode ser enviada."
+      );
+    }
+
     const aluno = await this.alunos.findById(alunoId);
     if (!aluno || !aluno.ativo) {
       throw badRequest("Ocorrencia deve estar vinculada a aluno valido.");
@@ -240,6 +250,9 @@ export class OcorrenciasService {
     const temAlteracao = Object.values(input).some((valor) => valor !== undefined);
     if (!temAlteracao) {
       throw badRequest("Informe pelo menos um campo para editar.");
+    }
+    if (input.descricao !== undefined && analisarModeracaoDescricao(input.descricao).bloqueado) {
+      throw badRequest("A ocorrência não foi enviada. Revise a linguagem da descrição.");
     }
 
     const now = agoraIso();
